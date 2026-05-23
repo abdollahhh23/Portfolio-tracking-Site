@@ -1,378 +1,209 @@
-# PSX Stock Data API
+# PSX Stock Data Scraper
 
-Fetch historical **OHLCV** (Open · High · Low · Close · Volume) data for any
-ticker on the Pakistan Stock Exchange — via CLI, Python import, or a live
-REST API you can deploy to the internet for free.
+Download historical stock data from the Pakistan Stock Exchange directly to your computer — as a CSV, JSON, or Excel file.
 
 ---
 
-## Table of contents
+## What it does
 
-1. [Quick start (local)](#1-quick-start-local)
-2. [Configuration](#2-configuration)
-3. [CLI usage](#3-cli-usage)
-4. [REST API](#4-rest-api)
-5. [Deploy for free on Render](#5-deploy-for-free-on-render)
-6. [Keep it awake with UptimeRobot](#6-keep-it-awake-with-uptimerobot)
-7. [Other free platforms](#7-other-free-platforms)
-8. [Python module usage](#8-python-module-usage)
-9. [Project layout](#9-project-layout)
-10. [Data & legal notice](#10-data--legal-notice)
+You give it a ticker symbol (like `LUCK` or `OGDC`) and a time range, and it downloads that stock's daily **Open, High, Low, Close, and Volume** data and saves it to a file on your computer.
 
 ---
 
-## 1. Quick start (local)
+## Requirements
 
-```bash
-# Clone the repo
-git clone https://github.com/your-username/psx-scraper.git
-cd psx-scraper
+- Python 3.10 or newer — download from [python.org](https://www.python.org/downloads/)
+- An internet connection
 
-# Install dependencies (Python 3.10+)
-pip install -r requirements.txt
-
-# Fetch data straight away — no config needed
-python main.py --ticker LUCK --period 1y
-
-# Or run the API server locally
-uvicorn api:app --reload --port 8000
-# → open http://localhost:8000/docs
-```
+That's it. All other dependencies are installed automatically on first run.
 
 ---
 
-## 2. Configuration
+## The easiest way to run it — `run.sh`
 
-Open **`config.py`** — the single file you need to edit before running.
-Every setting is documented inline.
-
-```python
-# config.py — the only file you need to touch
-
-TICKERS        = ["LUCK", "OGDC", "ENGRO"]    # stocks to fetch
-PERIOD         = "1y"                           # how far back
-START_DATE     = None                           # or "2023-01-01"
-END_DATE       = None                           # or "2025-05-22"
-
-COLUMNS        = ["Date", "Open", "High", "Low", "Close", "Volume"]
-
-OUTPUT_FORMATS = ["csv", "json"]                # print / csv / json / excel / all
-OUTPUT_DIR     = "output"
-
-INPUT_FORMAT   = "args"                         # args / csv / json / txt
-INPUT_FILE     = None
-```
-
-After editing, just run:
+Double-click `run.sh`, or open a terminal in the project folder and type:
 
 ```bash
-python main.py
+bash run.sh
 ```
 
-CLI flags always override `config.py`.
+It will ask you three questions — one at a time:
+
+```
+Step 1 of 3 — Ticker
+  Enter one or more PSX ticker symbols separated by spaces.
+  Ticker(s): LUCK
+
+Step 2 of 3 — Time Range
+  [1]  1 week
+  [2]  1 month
+  [3]  3 months
+  [4]  6 months
+  [5]  1 year       (default)
+  [6]  2 years
+  [7]  5 years
+  [8]  All available data (from ~2000)
+  [9]  Custom date range
+  Choice [1-9]: 5
+
+Step 3 of 3 — Output Format
+  [1]  Print to terminal   (default)
+  [2]  Save as CSV
+  [3]  Save as JSON
+  [4]  Save as Excel (.xlsx)
+  [5]  CSV + JSON
+  [6]  All formats
+  Choice [1-6]: 2
+```
+
+Done. Your file appears in the `output/` folder.
+
+> **Windows users:** If double-clicking doesn't work, right-click `run.sh` → "Open with" → Git Bash. Or just use the command line examples below.
 
 ---
 
-## 3. CLI usage
+## Running from the command line
 
-### Tickers
+If you prefer to skip the prompts and run it directly:
 
-```bash
-python main.py --ticker LUCK                          # single ticker
-python main.py --tickers LUCK OGDC ENGRO              # multiple
-python main.py --input-format csv --input-file tickers.csv   # from file
-python main.py --list-tickers                         # all PSX symbols
-```
-
-### Time range
+### Get data for one stock
 
 ```bash
-python main.py --ticker LUCK --period 6m
-python main.py --ticker LUCK --start 2024-01-01 --end 2025-05-22
+python3 main.py --ticker LUCK --period 1y
 ```
 
-| Period flag | Window |
-|-------------|--------|
-| `1w` | 1 week |
-| `2w` | 2 weeks |
-| `1m` | 1 month |
-| `3m` | 3 months |
-| `6m` | 6 months |
-| `1y` | 1 year *(default)* |
-| `2y` | 2 years |
-| `3y` | 3 years |
-| `5y` | 5 years |
-| `max` | All available (~2000 onward) |
-
-### Output format
+### Get data for multiple stocks at once
 
 ```bash
-python main.py --ticker LUCK --output print          # terminal table
-python main.py --ticker LUCK --output csv            # saves LUCK_psx.csv
-python main.py --ticker LUCK --output json           # saves LUCK_psx.json
-python main.py --ticker LUCK --output csv json       # both files
-python main.py --ticker LUCK --output all            # print + csv + json + excel
-python main.py --ticker LUCK --output csv --out-dir ./data
+python3 main.py --tickers LUCK OGDC ENGRO --period 6m
 ```
 
-### Columns
+### Use a custom date range instead of a period
 
 ```bash
-python main.py --ticker LUCK --columns Date Close Volume
-python main.py --ticker LUCK --columns Date Open High Low Close
+python3 main.py --ticker LUCK --start 2024-01-01 --end 2025-05-22
 ```
 
-### Input files
+### Choose your output format
 
-**CSV** — must have a column named `symbol` or `ticker`:
-```csv
-symbol
-LUCK
-OGDC
-ENGRO
-```
 ```bash
-python main.py --input-format csv --input-file tickers.csv --period 6m --output csv
+# Print to terminal (default — no file saved)
+python3 main.py --ticker LUCK --period 1y --output print
+
+# Save as CSV
+python3 main.py --ticker LUCK --period 1y --output csv
+
+# Save as JSON
+python3 main.py --ticker LUCK --period 1y --output json
+
+# Save as Excel
+python3 main.py --ticker LUCK --period 1y --output excel
+
+# Save as both CSV and JSON
+python3 main.py --ticker LUCK --period 1y --output csv json
+
+# Save everything (print + CSV + JSON + Excel)
+python3 main.py --ticker LUCK --period 1y --output all
 ```
 
-**JSON** — a list of strings:
-```json
-["LUCK", "OGDC", "ENGRO"]
-```
+### See all available PSX tickers
+
 ```bash
-python main.py --input-format json --input-file tickers.json --period 1y --output json
-```
-
-**Plain text** — one ticker per line, `#` lines are comments:
-```
-# Blue-chip
-LUCK
-OGDC
-
-# Banks
-HBL
-MCB
-```
-```bash
-python main.py --input-format txt --input-file tickers.txt --period 3m --output csv json
+python3 main.py --list-tickers
 ```
 
 ---
 
-## 4. REST API
+## Use cases
 
-Start the server:
-
-```bash
-uvicorn api:app --reload --port 8000
-```
-
-Interactive docs at **http://localhost:8000/docs** (Swagger UI).
-
-### Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | Welcome + links |
-| `GET` | `/ping` | Keep-alive for uptime monitors → returns `"pong"` |
-| `GET` | `/health` | Liveness check with UTC timestamp |
-| `GET` | `/tickers` | All PSX-listed symbols |
-| `GET` | `/stock/{symbol}` | Single ticker OHLCV |
-| `GET` | `/stocks` | Multiple tickers in one call |
-
-### Query parameters
-
-| Param | Example | Notes |
-|-------|---------|-------|
-| `period` | `?period=6m` | Shorthand period |
-| `start` | `?start=2024-01-01` | Use together with `end` |
-| `end` | `?end=2025-05-22` | Use together with `start` |
-
-### Example requests
-
-```
-GET /stock/LUCK?period=1y
-GET /stock/OGDC?start=2024-01-01&end=2025-05-22
-GET /stocks?symbols=LUCK,OGDC,ENGRO&period=3m
-```
-
-### Example response (`/stock/LUCK?period=1y`)
-
-```json
-{
-  "symbol": "LUCK",
-  "start": "2024-05-23",
-  "end": "2025-05-23",
-  "rows": 247,
-  "data": [
-    {
-      "Date": "2024-05-23",
-      "Open": 972.50,
-      "High": 985.00,
-      "Low":  965.25,
-      "Close": 980.00,
-      "Volume": 245000
-    }
-  ]
-}
-```
-
----
-
-## 5. Deploy for free on Render
-
-**Render** gives you a free HTTPS API with zero configuration and no credit
-card required. This is the recommended deployment path.
-
-### Step 1 — Push your code to GitHub
+### I want the last year of data for one stock, saved as a spreadsheet
 
 ```bash
-git init
-git add .
-git commit -m "initial commit"
-git remote add origin https://github.com/your-username/psx-scraper.git
-git push -u origin main
+python3 main.py --ticker LUCK --period 1y --output excel
 ```
 
-### Step 2 — Create a Render Web Service
-
-1. Go to [render.com](https://render.com) and sign up (free, no card).
-2. Click **New → Web Service**.
-3. Connect your GitHub account and select your repository.
-4. Render auto-detects the `Dockerfile`. Confirm these settings:
-
-   | Setting | Value |
-   |---------|-------|
-   | Environment | Docker |
-   | Region | Pick closest to Pakistan (Singapore or Frankfurt) |
-   | Instance type | **Free** |
-   | Health check path | `/ping` |
-
-5. Click **Deploy**. Wait ~2 minutes.
-
-Your API is now live at:
-
-```
-https://psx-api.onrender.com/docs
-https://psx-api.onrender.com/stock/LUCK?period=1y
-```
-
-### Step 3 — (Optional) Lock down CORS
-
-By default the API allows all origins (`*`). To restrict it to your own
-frontend, add an environment variable in Render's dashboard:
-
-```
-Key:   ALLOWED_ORIGINS
-Value: https://yoursite.com,https://app.yoursite.com
-```
-
-No code change needed — `api.py` reads this automatically.
+Opens as `output/LUCK_psx.xlsx` in Excel or Google Sheets.
 
 ---
 
-## 6. Keep it awake with UptimeRobot
-
-Render's free tier sleeps after **15 minutes of inactivity** (60-second cold
-start on the next request). Fix this for free with UptimeRobot:
-
-1. Sign up at [uptimerobot.com](https://uptimerobot.com) (free tier: 50 monitors).
-2. Click **Add New Monitor**:
-
-   | Setting | Value |
-   |---------|-------|
-   | Monitor Type | HTTP(s) |
-   | Friendly Name | PSX API |
-   | URL | `https://psx-api.onrender.com/ping` |
-   | Monitoring Interval | **5 minutes** |
-
-3. Save. UptimeRobot pings `/ping` every 5 minutes — your API stays warm 24/7.
-
-> You also get free downtime email alerts as a bonus.
-
----
-
-## 7. Other free platforms
-
-| Platform | Free forever | Card needed | Cold starts | Notes |
-|----------|:---:|:---:|:---:|-------|
-| **Render** ✓ | ✅ | ❌ | ~60 s | Best default choice |
-| **Railway** | ⚠️ trial credit | ❌ | None | Credit runs out; needs card after |
-| **Fly.io** | ✅ | ✅ | None | Best performance; card required |
-| **PythonAnywhere** | ✅ | ❌ | None | Blocks outbound HTTP — won't work |
-
-### Running with Docker locally
+### I want to compare multiple stocks over 6 months
 
 ```bash
-docker build -t psx-api .
-docker run -p 8000:8000 psx-api
-# → http://localhost:8000/docs
+python3 main.py --tickers LUCK OGDC ENGRO HBL --period 6m --output csv
+```
+
+Saves a separate CSV for each ticker: `LUCK_psx.csv`, `OGDC_psx.csv`, etc.
+
+---
+
+### I want data for a specific date range (e.g. before and after an event)
+
+```bash
+python3 main.py --ticker PSO --start 2024-03-01 --end 2024-09-30 --output csv
 ```
 
 ---
 
-## 8. Python module usage
+### I want to quickly glance at recent prices without saving a file
 
-`scraper.py` is importable — no CLI or server needed:
-
-```python
-import datetime
-from scraper import scrape, scrape_multiple, period_to_dates
-
-# Single ticker
-df = scrape("LUCK", datetime.date(2024, 1, 1), datetime.date(2025, 5, 22))
-print(df.head())
-
-# Period shorthand
-start, end = period_to_dates("6m")
-df = scrape("OGDC", start, end)
-
-# Multiple tickers → dict of DataFrames
-results = scrape_multiple(
-    ["LUCK", "OGDC", "ENGRO"],
-    datetime.date(2024, 1, 1),
-    datetime.date(2025, 5, 22),
-)
-for symbol, df in results.items():
-    print(symbol, df.shape)
+```bash
+python3 main.py --ticker MARI --period 1m --output print
 ```
+
+Prints a table directly in the terminal.
 
 ---
 
-## 9. Project layout
+### I want everything — all formats, multiple years
 
+```bash
+python3 main.py --ticker ENGRO --period 5y --output all
 ```
-psx-scraper/
-├── config.py          ← EDIT THIS — all settings live here
-├── main.py            ← CLI entry point
-├── scraper.py         ← core scraping engine (importable)
-├── api.py             ← FastAPI REST server
-├── Dockerfile         ← container definition (Render / Railway / Fly.io)
-├── .dockerignore
-├── .gitignore
-├── requirements.txt
-├── README.md
-└── output/            ← generated files land here (auto-created, git-ignored)
-```
+
+Saves `ENGRO_psx.csv`, `ENGRO_psx.json`, `ENGRO_psx.xlsx` and also prints to terminal.
 
 ---
 
-## 10. Data & legal notice
+### I don't know the ticker symbol for a company
 
-Historical market data is sourced live from
-[dps.psx.com.pk](https://dps.psx.com.pk), which is operated by
-**Pakistan Stock Exchange Limited (PSX)** and **CS Solutions (Pvt.) Ltd**.
+```bash
+python3 main.py --list-tickers
+```
 
-- This project is open-source and provided for **educational and
-  non-commercial use**.
-- PSX data is the intellectual property of PSX / CS Solutions. Redistribution
-  or commercial use of the data may require a licence from PSX's Market Data
-  Team: **marketdatarequest@psx.com.pk**.
-- This software is licensed under the **MIT License** — see `LICENSE`.
+Prints every symbol listed on PSX. Find your company, note the symbol, then run your query.
 
 ---
 
-## Common PSX tickers
+## Output files
+
+All saved files go into the `output/` folder inside the project directory. It's created automatically if it doesn't exist.
+
+| Format | Filename | Opens with |
+|--------|----------|------------|
+| CSV | `SYMBOL_psx.csv` | Excel, Google Sheets, pandas |
+| JSON | `SYMBOL_psx.json` | Any text editor, Python, JavaScript |
+| Excel | `SYMBOL_psx.xlsx` | Excel, Google Sheets, LibreOffice |
+
+---
+
+## Valid period values
+
+| Flag | Data window |
+|------|-------------|
+| `1w` | Last 1 week |
+| `2w` | Last 2 weeks |
+| `1m` | Last 1 month |
+| `3m` | Last 3 months |
+| `6m` | Last 6 months |
+| `1y` | Last 1 year *(default)* |
+| `2y` | Last 2 years |
+| `3y` | Last 3 years |
+| `5y` | Last 5 years |
+| `max` | All data from ~2000 onward |
+
+---
+
+## Common ticker symbols
 
 | Symbol | Company |
 |--------|---------|
@@ -387,4 +218,25 @@ Historical market data is sourced live from
 | HUBC | Hub Power Company |
 | EFERT | Engro Fertilizers |
 
-Run `python main.py --list-tickers` to see every listed symbol.
+Run `python3 main.py --list-tickers` for the full list.
+
+---
+
+## Project files
+
+```
+psx-scraper/
+├── run.sh           ← run this to start (interactive, one click)
+├── main.py          ← the script (use directly from command line)
+├── scraper.py       ← handles all the data fetching (don't edit)
+├── requirements.txt ← Python dependencies
+├── README.md
+└── output/          ← your downloaded files appear here
+```
+
+---
+
+## License
+
+MIT — free to use, modify, and share.  
+Data sourced from [dps.psx.com.pk](https://dps.psx.com.pk) — for educational and non-commercial use.
