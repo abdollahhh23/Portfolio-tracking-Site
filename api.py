@@ -4,9 +4,13 @@ api.py — FastAPI REST API wrapping the PSX scraper.
 Run locally:
     uvicorn api:app --reload --port 8000
 
+Deployed on Render / Railway / Fly.io — see README.md for full instructions.
+
 Endpoints:
-    GET /health
-    GET /tickers
+    GET /          → welcome message + link to /docs
+    GET /ping      → UptimeRobot keep-alive (returns "pong")
+    GET /health    → liveness check with timestamp
+    GET /tickers   → all PSX-listed symbols
     GET /stock/{symbol}?period=1y
     GET /stock/{symbol}?start=2024-01-01&end=2025-05-22
     GET /stocks?symbols=LUCK,OGDC,ENGRO&period=6m
@@ -14,6 +18,7 @@ Endpoints:
 
 import datetime
 import logging
+import os
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
@@ -28,26 +33,49 @@ from scraper import (
     PERIOD_MAP,
 )
 
-# ── App setup ─────────────────────────────────────────────────────────────────
+# ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
+    level  = logging.INFO,
+    format = "%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
 )
+logger = logging.getLogger("psx.api")
+
+# ── App ───────────────────────────────────────────────────────────────────────
+_DESCRIPTION = """
+Fetch historical **OHLCV** (Open · High · Low · Close · Volume) data for any
+ticker listed on the **Pakistan Stock Exchange** (PSX).
+
+Data is sourced live from [dps.psx.com.pk](https://dps.psx.com.pk).
+
+### Notes
+- Data is the intellectual property of PSX / CS Solutions. This API is
+  provided for educational and non-commercial use.
+- Interactive docs are available at [/docs](/docs) (Swagger) and [/redoc](/redoc).
+"""
 
 app = FastAPI(
     title       = "PSX Stock Data API",
-    description = "Scrapes historical OHLCV data from the Pakistan Stock Exchange (dps.psx.com.pk)",
+    description = _DESCRIPTION,
     version     = "1.0.0",
     docs_url    = "/docs",
     redoc_url   = "/redoc",
+    contact     = {"name": "PSX Scraper", "url": "https://github.com/your-username/psx-scraper"},
+    license_info= {"name": "MIT"},
 )
 
-# Allow all origins while in development — lock this down before going public
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# Reads ALLOWED_ORIGINS from the environment so you can lock it down in
+# production without touching code:
+#   Render → Environment → ALLOWED_ORIGINS=https://yoursite.com
+# Defaults to "*" (open) when the env var is not set.
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
+_origins = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins     = ["*"],
-    allow_credentials = True,
-    allow_methods     = ["*"],
+    allow_origins     = _origins,
+    allow_credentials = _raw_origins != "*",   # credentials only when origins are explicit
+    allow_methods     = ["GET"],               # read-only API — no POST/DELETE needed publicly
     allow_headers     = ["*"],
 )
 
@@ -106,10 +134,37 @@ def _df_to_records(df) -> list[dict]:
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+@app.get("/", tags=["meta"], include_in_schema=False)
+def root():
+    """Welcome — redirect users to /docs."""
+    return {
+        "name":        "PSX Stock Data API",
+        "version":     "1.0.0",
+        "docs":        "/docs",
+        "health":      "/health",
+        "example":     "/stock/LUCK?period=1y",
+    }
+
+
+@app.get("/ping", tags=["meta"])
+def ping():
+    """
+    Keep-alive endpoint for UptimeRobot / BetterUptime.
+
+    Point your uptime monitor here at a 5-minute interval to prevent
+    Render's free tier from spinning down your service.
+    """
+    return "pong"
+
+
 @app.get("/health", tags=["meta"])
 def health():
-    """Liveness check."""
-    return {"status": "ok", "timestamp": datetime.datetime.utcnow().isoformat() + "Z"}
+    """Liveness check — returns current UTC timestamp."""
+    return {
+        "status":    "ok",
+        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "version":   "1.0.0",
+    }
 
 
 @app.get("/tickers", tags=["meta"])
