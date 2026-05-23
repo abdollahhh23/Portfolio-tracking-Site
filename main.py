@@ -316,7 +316,7 @@ def main():
         sys.exit(1)
 
     start, end = resolve_dates(args)
-    print(f"\n📈  PSX Scraper  |  {', '.join(s.upper() for s in symbols)}")
+    print(f"\n  PSX Scraper  |  {', '.join(s.upper() for s in symbols)}")
     print(f"    Date range : {start} → {end}\n")
 
     results = {}

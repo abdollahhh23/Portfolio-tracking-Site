@@ -62,7 +62,7 @@ def create_historical_commit(target_date_str: str, commit_count: int = 1):
 
 if __name__ == "__main__":
     # Example Target Context
-    input_date = "2025-5-22"
-    number_of_commits = 2
+    input_date = "2026-5-22"
+    number_of_commits = 3
 
     create_historical_commit(input_date, commit_count=number_of_commits)
